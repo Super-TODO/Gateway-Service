@@ -1,0 +1,33 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: gateway-service
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: user-service
+          uri: lb://user-service  #load balancer
+          predicates:
+            - Path=/auth/**, /public/**, /profile/**
+
+        - id: todo-service
+          uri: lb://todo-service
+          predicates:
+            - Path=/api/todos/**
+          filters:
+            - StripPrefix=2
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+
+
+
