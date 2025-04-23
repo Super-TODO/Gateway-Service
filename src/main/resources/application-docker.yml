@@ -12,7 +12,7 @@ spring:
           enabled: true
       routes:
         - id: user-service
-          uri: lb://user-service  #load balancer
+          uri: lb://user-service
           predicates:
             - Path=/auth/**, /public/**, /profile/**
 
@@ -21,12 +21,9 @@ spring:
           predicates:
             - Path=/items/**
 
-
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
-
-
-
-
+      defaultZone: http://eureka-server:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
