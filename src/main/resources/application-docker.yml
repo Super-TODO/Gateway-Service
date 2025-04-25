@@ -9,13 +9,12 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
+          enabled: false
       routes:
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/auth/**, /public/**, /profile/**
-
+            - Path=/auth/**
         - id: todo-service
           uri: lb://todo-service
           predicates:

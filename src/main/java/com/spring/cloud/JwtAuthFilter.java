@@ -1,8 +1,12 @@
 package com.spring.cloud;
 
 import jakarta.ws.rs.core.HttpHeaders;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -10,28 +14,28 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthFilter implements GlobalFilter {
 
     private final WebClient.Builder webClientBuilder;
-
-    public JwtAuthFilter(WebClient.Builder webClientBuilder) {
-        this.webClientBuilder = webClientBuilder;
-    }
+    private static final Duration TIMEOUT = Duration.ofSeconds(3);
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
+        String path = request.getPath().value();
 
-        System.out.println(" [JwtAuthFilter] New incoming request: " + request.getURI());
-
-        if (request.getPath().toString().startsWith("/auth") || request.getPath().toString().startsWith("/public")) {
+        if (path.startsWith("/auth")) {
             return chain.filter(exchange);
         }
 
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (!authHeader.startsWith("Bearer ")) {
-            System.out.println(" [JwtAuthFilter] Missing or invalid Authorization header.");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.debug("Missing or invalid Authorization header => {}", path);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
@@ -40,15 +44,19 @@ public class JwtAuthFilter implements GlobalFilter {
 
         return webClientBuilder.build()
                 .get()
-                .uri("http://user-service/auth/validate-token")
+                .uri("lb://" +
+                        "user-service/auth/validate-token")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .toBodilessEntity()
+                .timeout(TIMEOUT)
+                .doOnError(err -> log.warn("Token validation failed ({}) : {}", err.getClass().getSimpleName(), err.getMessage()))
                 .then(chain.filter(exchange))
-                .onErrorResume(error -> {
-                    System.out.println(" [JwtAuthFilter] Token validation failed: " + error.getMessage());
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                .onErrorResume(err -> {
+                    exchange.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
                     return exchange.getResponse().setComplete();
                 });
     }
+
+
 }
