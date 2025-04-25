@@ -53,9 +53,10 @@ public class JwtAuthFilter implements GlobalFilter {
                 .doOnError(err -> log.warn("Token validation failed ({}) : {}", err.getClass().getSimpleName(), err.getMessage()))
                 .then(chain.filter(exchange))
                 .onErrorResume(err -> {
-                    exchange.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
+                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                     return exchange.getResponse().setComplete();
                 });
+
     }
 
 
